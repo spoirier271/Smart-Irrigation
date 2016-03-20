@@ -1,0 +1,66 @@
+Author: Stephen Poirier
+
+The purpose of the feedback control algorithm is to interpret the data received from the 
+XBEES and use it to decide the amount of time to open the control the valves.
+
+Program flow:
+ 
+·  The GPIO pins are prepared an array of frames is initialized using the defined number of frames to get.
+
+·  Work loop begins
+
+o   The current time of day is recorded and checked against the defined times to begin processing frames/opening valves
+
+o   If the time of day is not one of the listed times of day to water, then the loop continues
+
+o   Otherwise, the frame array is filled with values from the file containing frame data based on the defined range of frames to get.
+
+o   If there are no new frames in the desired range, then an error message prints and a Boolean variable is updated to indicate that no frames were received.
+
+o   Otherwise, the average value of all the sensor readings is taken and used to determine the amount of time the valves must be opened.
+
+o   The value of this time is calculated as a sum of the defined time values.
+
+o   The average values from the temperature and sensor readings are put through a series of ranges used to classify how severe the need for watering is. Once a time value is assigned for the moisture sensor and temperature sensor readings, they are summed.
+
+o   The pin used to control the valve is then written to for the calculated time.
+o   In the case that there were no new frames, the program will try to read frames once more at a defined “retry” time and repeat the process. If there are no new frames once again after the retry, then a message is printed to indicate that there is a problem with the system and all of the pins are turned off in case any of the valves were left open.
+
+o   Otherwise frames are processed as they normally are and a watering time is calculated.
+
+o   The loop continues to the next iteration
+
+
+
+Files used:
+
+feedback.h:
+
+Contains #defines used for deciding sensor value thresholds and watering times
+
+feedback2.c:
+
+Contains the main logic used for 
+processing values received from the sensor 
+readings and using it to formulate the time 
+needed to open the valves.
+
+frames.h:
+
+Contains definition of frame struct.
+
+frames.c:
+
+Contains the functions used to
+parse the soil data file.
+
+my_gpio.h:
+
+Contains function prototypes for my_gpio.c
+
+mygpio.c:
+
+
+Contains functions used to
+operate the GPIO pins on the raspberry
+pi.
