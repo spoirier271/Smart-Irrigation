@@ -9,7 +9,7 @@ process frames.
 ******************************************/
 
 #include "db_feedback.h"
-#include "my_gpio.h"
+#include "db_my_gpio.h"
 
 int main() {
 	int hour, min, sec, frames_received, i, pin = WORK_PIN;
