@@ -3,6 +3,9 @@ This file contains the main logic used for
 processing values received from the sensor 
 readings and using it to formulate the time 
 needed to open the valves.
+
+4/28/16: Code now uses the sqlite database to
+process frames.
 ******************************************/
 
 #include "db_feedback.h"
