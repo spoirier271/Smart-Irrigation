@@ -97,7 +97,7 @@ double get_moisture_watering_inches(struct frame frame_average) {
 double get_temperature_watering_inches(struct frame frame_average) {
 	double t;
 	
-	t = frame_average.data.temperature_sensor_value;
+	t = frame_average.data.temperature_sensor_average_value;
 	
 	//t is the actual water amount that must be converted to a watering time
 	
@@ -110,7 +110,7 @@ double get_temperature_watering_inches(struct frame frame_average) {
 	//38-50
 	else if( (t < 50) && (t >= 38) ) {
 
-	return 0.5;
+		return 0.5;
 	} 
 	
 	//26-38
@@ -119,11 +119,13 @@ double get_temperature_watering_inches(struct frame frame_average) {
 		return 0.25;
 	} 
 	
+	/*********		IDEAL RANGE 	*********/
 	//21-26
 	else if( (t < 26) && (t >= 21) ) {
 	
 		return 0;
 	} 
+	/*********		IDEAL RANGE 	*********/
 	
 	//10-21
 	else if( (t < 21) && (t >= 10) ) {
