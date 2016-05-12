@@ -5,6 +5,7 @@ pi
 **************************************/
 
 #include "db_my_gpio.h"
+#include "db_feedback.h"
 
 //initialize GPIO functionality
 void gpio_ready(int * pin) {
@@ -19,15 +20,16 @@ void gpio_ready(int * pin) {
 	pin_init();
 	
 	//map working pin
-// 	map(pin);
+	map(pin);
 }
 
 //set pins to output mode
 void pin_init() {
 	
-	//set pins 12,13,15,16,18,22,7,3 to OUTPUT
+	//set pins 11,12,13,15,16,18,22,7,3 to OUTPUT
     pinMode(3, OUTPUT);
     pinMode(7, OUTPUT);
+    pinMode(11, OUTPUT);
     pinMode(12, OUTPUT);
     pinMode(13, OUTPUT);
     pinMode(15, OUTPUT);
@@ -39,6 +41,9 @@ void pin_init() {
 //map pin to GPIO number
 void map(int *pin) {
 	switch(*pin) {
+		case 0:
+			*pin = 11;
+			break;
 		case 1:
 			*pin = 12;
 			break;
@@ -71,6 +76,9 @@ int reverse_map(int pin) {
 
 	if(pin == 12)
 		return 1;
+	
+	if(pin == 11)
+		return 0;
 		
 	if(pin == 13)
 		return 2;
@@ -93,7 +101,7 @@ int reverse_map(int pin) {
 	if(pin == 3)
 		return 8;
 		
-	return 0;
+	return -1;
 
 
 }
@@ -119,6 +127,7 @@ double write_to_pin(int pin, double watering_time) {
 
 	//get time of day after closing valve
 	time(&end_t);
+	get_time(&hour, &min, &sec);
 	printf("Closed valves on pin %d at time %d:%d:%d\n", pin, hour, min, sec);
 	
 	//get time spent watering
@@ -129,6 +138,21 @@ double write_to_pin(int pin, double watering_time) {
 	
 	//return the amount of time that the valve was open
 	return total_time;
+}
+
+//write to pin for given time
+void write_to_alarm_pin(int alarm_pin, double alarm_time) {
+	map(&alarm_pin);
+
+	//sound the alarm
+	printf("Sounding alarm on pin %d\n", alarm_pin);
+	digitalWrite(alarm_pin, 1);
+
+	//let alarm ring
+	delay(alarm_time);
+
+	//turn off alarm
+	digitalWrite(alarm_pin, 0);
 }
 
 //write low to all pins
