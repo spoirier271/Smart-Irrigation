@@ -3,9 +3,6 @@ This file contains the main logic used for
 processing values received from the sensor 
 readings and using it to formulate the time 
 needed to open the valves.
-
-4/28/16: Code now uses the sqlite database to
-process frames.
 ******************************************/
 
 #include "db_feedback.h"
@@ -37,6 +34,8 @@ int main() {
 	//waiting loop
 	int z = 0;
 	watered = false;
+	
+	bool test_water = true;
 	while(1) {
 	
 		//get the time
@@ -48,7 +47,10 @@ int main() {
 
 		//check if it's time to water the plants
 // 		if( (hour == WATERING_TIME_HOUR_1) && (!watered) ) {
-		if(min == 30) {
+		if( (min % 2) == 0) {
+// 		if( ((hour == 0) || (hour == 2) || (hour == 4) || (hour == 6) || (hour == 8) || (hour == 10) || (hour == 12) || (hour == 14)
+// 			|| (hour == 16) || (hour == 18) || (hour == 20) || (hour == 22)) && test_water ) {
+			
 			printf("Starting feedback control process %d at time %d:%d:%d\n", z, hour, min, sec);
 			z++;
 
@@ -76,6 +78,18 @@ int main() {
 				//get average of all frame data
 				frame_average = get_average(frames, FRAMES_TO_GET);
 				
+				/**************************************************************************/
+				printf("average moisture: \t\t%d\n",  frame_average.data.moisture_sensor_average_value);
+				printf("average temperature: \t\t%d\n",  frame_average.data.temperature_sensor_average_value);
+				
+				/**************************************************************************/
+				
+				//check if soil is bone dry
+				if(check_bone_dry(frames, FRAMES_TO_GET) == 1) {
+					printf("your soil is bone dry\n");
+					write_to_alarm_pin(ALARM_PIN, ALARM_TIME);
+				}
+				
 				//calculate how much time should be spent watering based on frame data
 				watering_time = decide_watering_time(frame_average);
 				
@@ -83,13 +97,24 @@ int main() {
 				print_watering_time(watering_time);
 				
 				//open valve
-				write_to_pin(pin, watering_time);
+// 				write_to_pin(pin, watering_time);
+
+				
 				printf("\n");
+				
+				test_water = false;
+				delay(1000 * 60);
 				
 				//set watered to true
 // 				watered = true;
 			}
 
+		}
+		
+		if( ((hour == 1) || (hour == 3) || (hour == 5) || (hour == 7) || (hour == 9) || (hour == 11) || (hour == 13) || (hour == 15)
+			|| (hour == 17) || (hour == 19) || (hour == 21) || (hour == 23)) && !test_water ) {
+				
+			test_water = true;
 		}
 		
 		//if no frames again, then assume system failure and turn off all valves
