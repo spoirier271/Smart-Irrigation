@@ -16,8 +16,12 @@ void frame_init(struct frame frame) {
 	for(i = 0; i < NUM_OF_MOISTURE_SENSORS; i++)
 		frame.data.moisture_sensor_value[i] = 0;
 		
+	for(i = 0; i < NUM_OF_TEMP_SENSORS; i++)
+		frame.data.temperature_sensor_value[i] = 0;
+		
 	frame.data.moisture_sensor_average_value = 0;
-	frame.data.temperature_sensor_value = 0;
+	frame.data.temperature_sensor_average_value = 0;
+	frame.bone_dry = false;
 }
 
 int get_last_frames(char * db_name, char * table_name, int requested_num_of_frames, char * sql_results[]) {
@@ -82,7 +86,8 @@ int get_all_frames(char * db_name, char * table_name, char ** sql_results) {
 //fill single frame with given value from line in file
 struct frame get_frame(char * line, int frame_number, struct frame *frame) {
 	char temp[1000];
-
+	int i;
+	
 	//check for valid frame
 	if(line_check(line) == 0) {
 
@@ -92,18 +97,20 @@ struct frame get_frame(char * line, int frame_number, struct frame *frame) {
 		strcpy(frame->node_id, "empty");
 		strcpy(frame->time, "empty");
 		
-		frame->data.moisture_sensor_value[0] = 0;
-		frame->data.moisture_sensor_value[1] = 0;
-		frame->data.moisture_sensor_value[2] = 0;
-		
+		for(i = 0; i < NUM_OF_MOISTURE_SENSORS; i++)
+			frame->data.moisture_sensor_value[i] = 0;
+			
 		frame->data.moisture_sensor_average_value = moisture_average(frame->data.moisture_sensor_value,
 			NUM_OF_MOISTURE_SENSORS);
 			
-		frame->data.temperature_sensor_value = 0;
+		for(i = 0; i < NUM_OF_TEMP_SENSORS; i++)
+			frame->data.temperature_sensor_value[i] = 0;
+		
+		frame->data.temperature_sensor_average_value = temperature_average(frame->data.temperature_sensor_value,
+			NUM_OF_TEMP_SENSORS);
 
 		return empty_frame;
 	}
-
 	strcpy(temp, line);
 
 	//fill frame struct header info
@@ -111,26 +118,52 @@ struct frame get_frame(char * line, int frame_number, struct frame *frame) {
 	strcpy(frame->date, strtok(NULL, DELIM));
 	strcpy(frame->time, strtok(NULL, DELIM));
 	strcpy(frame->node_id, strtok(NULL, DELIM));
-	
+
 	//fill frame struct moisture sensor info
 	strcpy(temp, strtok(NULL, DELIM));
 	frame->data.moisture_sensor_value[0] = atoi(temp);
 	strcpy(temp, strtok(NULL, DELIM));
 	frame->data.moisture_sensor_value[1] = atoi(temp);
-	strcpy(temp, strtok(NULL, DELIM));
-	frame->data.moisture_sensor_value[2] = atoi(temp);
-	//take temperature sensor average
 	
+	if( (frame->data.moisture_sensor_value[0] >= 195) || (frame->data.moisture_sensor_value[1] >= 195) ) {
+		frame->bone_dry = true;
+	} else {
+		frame->bone_dry = false;
+	}
+
+	//take moisture sensor average	
 	frame->data.moisture_sensor_average_value = moisture_average(frame->data.moisture_sensor_value,
 		NUM_OF_MOISTURE_SENSORS);
-		
+
 	//fill frame struct temperature sensor info
 	strcpy(temp, strtok(NULL, DELIM));
-	frame->data.temperature_sensor_value = atoi(temp);
-	
+	frame->data.temperature_sensor_value[0] = atoi(temp);
+	strcpy(temp, strtok(NULL, DELIM));
+	frame->data.temperature_sensor_value[1] = atoi(temp);
+	strcpy(temp, strtok(NULL, DELIM));
+	frame->data.temperature_sensor_value[2] = atoi(temp);
+
+	//take temperature sensor average	
+	frame->data.temperature_sensor_average_value = temperature_average(frame->data.temperature_sensor_value,
+		NUM_OF_TEMP_SENSORS);
+		
 	return *frame;
 }
 
+int check_bone_dry(struct frame frames[], int frames_to_check) {
+	int i, dry_count = 0;
+	
+	for(i = 0; i < frames_to_check; i++) {
+		if (frames[i].bone_dry) {
+			dry_count++;
+		}
+		if(dry_count >= MAX_DRY_FRAMES) {
+			return 1;
+		}
+	}
+	
+	return 0;
+}
 //check if line contains valid frame
 int line_check(char * line) {
 	if(line[0] != '1')
@@ -153,12 +186,28 @@ struct frame get_average(struct frame frames[], int frame_count) {
 	
 	for(i = 0; i < frame_count; i++) {
 		moisture_sum += frames[i].data.moisture_sensor_average_value;
-		temp_sum += frames[i].data.temperature_sensor_value;
+		temp_sum += frames[i].data.temperature_sensor_average_value;
+		
+	/*********************************************/
+	printf("date: \t\t\t\t%s\n", frames[i].date);
+	printf("time: \t\t\t\t%s\n", frames[i].time);
+	printf("moisture sensor 1: \t\t%d\n", frames[i].data.moisture_sensor_value[0]);
+	printf("moisture sensor 2: \t\t%d\n", frames[i].data.moisture_sensor_value[1]);
+	printf("temperature sensor 1: \t\t%d\n", frames[i].data.temperature_sensor_value[0]);
+	printf("temperature sensor 2: \t\t%d\n", frames[i].data.temperature_sensor_value[1]);
+	printf("temperature sensor 3: \t\t%d\n", frames[i].data.temperature_sensor_value[2]);
+	/*********************************************/
+	
 	}
+	
 	frame_average.data.moisture_sensor_average_value = 	moisture_sum / frame_count;
 	for(i = 0; i < NUM_OF_MOISTURE_SENSORS; i++)
 		frame_average.data.moisture_sensor_value[i] = frame_average.data.moisture_sensor_average_value;
-	frame_average.data.temperature_sensor_value = temp_sum / frame_count;
+	
+	frame_average.data.temperature_sensor_average_value = 	temp_sum / frame_count;
+	for(i = 0; i < NUM_OF_TEMP_SENSORS; i++)
+		frame_average.data.temperature_sensor_value[i] = frame_average.data.temperature_sensor_average_value;
+
 
 	strcpy(frame_average.julian, avg);
 	strcpy(frame_average.date, avg);
@@ -175,18 +224,32 @@ int moisture_average(int moisture[], int num_of_moisture_sensors) {
 		
 	return sum / num_of_moisture_sensors;
 }
+
+//returns the frame's average temperature sensor value
+int temperature_average(int temperature[], int num_of_temperature_sensors) {
+	int i, sum = 0;
+	for(i = 0; i < num_of_temperature_sensors; i++)
+		sum += temperature[i];
+		
+	return sum / num_of_temperature_sensors;
+}
 	
 //prints all attributes of the given frame
 void print_frame(int frame_number, struct frame frames[]) {
+	int i;
+
 	printf("julian: \t\t\t%s\n", frames[frame_number].julian);
 	printf("date: \t\t\t\t%s\n", frames[frame_number].date);
 	printf("time: \t\t\t\t%s\n", frames[frame_number].time);
 	printf("node id: \t\t\t%s\n", frames[frame_number].node_id);
-	printf("moisture sensor 1: \t\t%d\n", frames[frame_number].data.moisture_sensor_value[0]);
-	printf("moisture sensor 2: \t\t%d\n", frames[frame_number].data.moisture_sensor_value[1]);
-	printf("moisture sensor 3: \t\t%d\n", frames[frame_number].data.moisture_sensor_value[2]);
+	
+	for(i = 0; i < NUM_OF_MOISTURE_SENSORS; i++)
+		printf("moisture sensor %d: \t\t%d\n", i, frames[frame_number].data.moisture_sensor_value[i]);
 	printf("average moisture: \t\t%d\n",  frames[frame_number].data.moisture_sensor_average_value);
-	printf("temperature sensor: \t\t%d\n", frames[frame_number].data.temperature_sensor_value);
+	
+	for(i = 0; i < NUM_OF_TEMP_SENSORS; i++)
+		printf("temperature sensor %d: \t\t%d\n", i, frames[frame_number].data.temperature_sensor_value[i]);
+	printf("average temperature: \t\t%d\n",  frames[frame_number].data.temperature_sensor_average_value);
 }
 
 void print_all_database_entries(char * db_name, char * table_name) {
@@ -248,12 +311,10 @@ void set_frames(struct frame (*fr)[]) {
 int callback(void *data, int argc, char **argv, char **azColName){
 	char line[10000];
 	
-	sprintf(line, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", argv[0], argv[1], argv[2], argv[3], argv[4], 
-		argv[5], argv[6], argv[7]);
-			
+	sprintf(line, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s", argv[0], argv[1], argv[2], argv[3], argv[4], 
+		argv[5], argv[6], argv[7], argv[8]);
 
 	get_frame(line, row_index, &((*frames)[row_index]));
-
 	row_index++;
 	rows_read++;
 	if(row_index >= FRAMES_TO_GET) {
@@ -286,8 +347,9 @@ int get_frames(struct frame *frames) {
 	}
 
 	/* Create SQL statement */
-	sql = "SELECT * from entry";
+	sql = "SELECT * from entry2";
 
+	
 	/* Execute SQL statement */
 	rc = sqlite3_exec(db, sql, callback, (void*)data, &zErrMsg);
 	if( rc != SQLITE_OK ){
@@ -297,6 +359,7 @@ int get_frames(struct frame *frames) {
 	  fprintf(stdout, "Database successfully queried\n");
 	}
 	sqlite3_close(db);
+	
 
 	return get_frame_table_row_count();
 }
